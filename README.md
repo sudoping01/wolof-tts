@@ -59,7 +59,7 @@ The Flask server runs automatically inside the container.
 ### Synthesizing Speech via API
 You can send a POST request to the `/predict` endpoint with the text to synthesize:
 ```bash
-curl -X POST http://localhost:8080/predict -H "Content-Type: application/json" -d '{"text": "Naka nga def?"}' --output output.wav
+curl -X POST http://localhost:8080/predict -H "Content-Type: application/json" -d '{"text": "Màngi tuddu Aadama, di baat bii waa Galsen A.I defar ngir wax ak yéen ci wolof!"}' --output output.wav
 ```
 
 This will return a `output.wav` file containing the synthesized speech.
