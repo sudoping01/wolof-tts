@@ -93,11 +93,5 @@ Example Response:
 ## Contributing
 Contributions are welcome! For major changes, please open an issue first to discuss what you'd like to change.
 
-1. Fork and clone the repository
-2. Create your feature branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -am 'Add feature'`
-4. Push to branch: `git push origin feature/your-feature`
-5. Submit a Pull Request
-
 ## License
 This project is licensed under the MIT License.
