@@ -1,3 +1,26 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+#
+# Wolof TTS Server - Text-to-Speech Synthesis for Wolof Language
+#
+# Copyright (C) 2024 sudoping01
+#
+# This file is part of Wolof-TTS, an open-source Text-to-Speech system 
+# designed to generate synthetic voice speaking in Wolof.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the MIT License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# MIT License for more details.
+#
+# Built on top of xTTS v2 model (not for commercial use).
+# This implementation provides a Flask API server for the model,
+# featuring text normalization and silence removal.
+
+
 import os
 from flask import Flask, request, send_file, jsonify
 import torch
@@ -5,6 +28,7 @@ import numpy as np
 import soundfile as sf
 from io import BytesIO
 import traceback
+import tempfile
 
 
 from TTS.tts.configs.xtts_config import XttsConfig
@@ -20,7 +44,6 @@ device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 class TtsSynthesizer:
     def __init__(self):
-
         self.root_path       = "galsenai-xtts-wo-checkpoints/"
         self.checkpoint_path = os.path.join(self.root_path, "Anta_GPT_XTTS_Wo")
         self.model_path      = "best_model_89250.pth"
@@ -47,9 +70,8 @@ class TtsSynthesizer:
                 use_deepspeed=False
             )
             self.model.to(device)
-            print("Model loaded successfully!")
         except Exception as e:
-            print("Error loading model:")
+            print(f"{self.__class__.__name__} in {self.load_model.__name__}")
             traceback.print_exc()
             raise e
 
@@ -62,7 +84,7 @@ class TtsSynthesizer:
                 sound_norm_refs=self.model.config.sound_norm_refs
             )
         except Exception as e:
-            print("Error generating conditioning latents:")
+            print(f"{self.__class__.__name__} in {self.get_conditioning_latents.__name__}")
             traceback.print_exc()
             raise e
 
@@ -79,8 +101,6 @@ class TtsSynthesizer:
             )
             audio_signal = result['wav']
 
-            print("Audio shape:", audio_signal.shape)
-            print("Audio min:", np.min(audio_signal), "max:", np.max(audio_signal))
             max_val = np.max(np.abs(audio_signal))
             if max_val == 0:
                 print("Warning: Generated audio is all zeros!")
@@ -89,7 +109,7 @@ class TtsSynthesizer:
             audio_signal = audio_signal / max_val
             return audio_signal
         except Exception as e:
-            print("Error during synthesis:")
+            print(f"{self.__class__.__name__} in {self.synthesize.__name__}")
             traceback.print_exc()
             raise e
 
@@ -99,11 +119,11 @@ class TtsSynthesizer:
             remove_silence(input_audio_path, silence_list, output_audio_path)
             return output_audio_path
         except Exception as e:
-            print("Error during silence removal:")
+            print(f"{self.__class__.__name__} in {self.remove_silence.__name__}")
             traceback.print_exc()
             raise e
 
-# Instantiate the synthesizer at startup.
+
 tts_synthesizer = TtsSynthesizer()
 
 @app.route('/predict', methods=['POST'])
@@ -111,7 +131,7 @@ def predict():
     """
     Expects a JSON payload like:
       { "text": "Your text to synthesize here" }
-    Returns the synthesized audio as a WAV file.
+    Returns the synthesized audio as a WAV file with silence removed.
     """
     data = request.get_json(force=True)
     if not data or 'text' not in data:
@@ -120,16 +140,31 @@ def predict():
     text = data['text']
     
     try:
-        audio_signal = tts_synthesizer.synthesize(text)
-        sample_rate = 24000
-        
-        buffer = BytesIO()
-        sf.write(buffer, audio_signal, sample_rate, format='WAV')
-        buffer.seek(0)
 
-        return send_file(buffer, mimetype="audio/wav", as_attachment=True, download_name="generated_audio.wav")
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_initial:
+            with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_processed:
+                try:
+
+                    audio_signal = tts_synthesizer.synthesize(text)
+                    sample_rate = 24000
+                    
+                    sf.write(temp_initial.name, audio_signal, sample_rate)
+                    
+                    tts_synthesizer.remove_silence(temp_initial.name, temp_processed.name)
+                    
+                    return send_file(
+                        temp_processed.name,
+                        mimetype="audio/wav",
+                        as_attachment=True,
+                        download_name="generated_audio.wav"
+                    )
+                finally:
+
+                    os.unlink(temp_initial.name)
+                    os.unlink(temp_processed.name)
+                    
     except Exception as e:
-        print("Error in /predict endpoint:")
+        print(f"{predict.__name__}")
         traceback.print_exc()
         return jsonify({"error": str(e)}), 500
 
@@ -141,6 +176,5 @@ def health():
     })
 
 if __name__ == '__main__':
-
     port = int(os.environ.get('AIP_HTTP_PORT', 8080))
     app.run(host="0.0.0.0", port=port)
