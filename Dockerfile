@@ -1,6 +1,11 @@
 
 FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
 
+LABEL maintainer="sudoping01 <sudoping01@gmail.com>" \
+      license="MIT" \
+      description="Wolof TTS Server - Text-to-Speech Synthesis for Wolof Language" \
+      copyright="Copyright (C) 2025 sudoping01"
+
 ENV PYTHON_VERSION=3.11
 ENV DEBIAN_FRONTEND=noninteractive
 
