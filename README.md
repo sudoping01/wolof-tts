@@ -12,7 +12,7 @@ This implementation is based on a fine-tuned version of xTTS v2 by **GalsenAI**.
 
 * High-quality Wolof speech synthesis
 * Fast and lightweight inference 
-* Supports text normalization and silence removal (to be review)
+* Supports text normalization and silence removal
 * API integration using Flask and Waitress
 * Dockerized for easy deployment
 
